@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LEGO Flip Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --card: #1a1a1a;
+    --card2: #222;
+    --border: #2a2a2a;
+    --accent: #f5c400;
+    --accent2: #ff6b35;
+    --green: #4caf7d;
+    --red: #e05555;
+    --text: #f0f0f0;
+    --muted: #888;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 0 0 60px 0;
+  }
+
+  header {
+    background: var(--card);
+    border-bottom: 2px solid var(--accent);
+    padding: 18px 20px 14px;
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+  header span { font-size: 0.78rem; color: var(--muted); }
+
+  .tabs {
+    display: flex;
+    gap: 0;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .tab {
+    flex: 1; min-width: 80px;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .section { padding: 16px; }
+
+  /* STATS */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .stat-card.full { grid-column: 1/-1; }
+  .stat-card .label { font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; }
+  .stat-card .value { font-family: 'Bebas Neue', sans-serif; font-size: 1.9rem; color: var(--accent); line-height: 1; }
+  .stat-card .value.green { color: var(--green); }
+  .stat-card .value.red { color: var(--red); }
+  .stat-card .sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+  /* CHART */
+  .chart-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .chart-title { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  canvas { width: 100% !important; }
+
+  /* LIST */
+  .filter-row {
+    display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px;
+  }
+  .filter-btn {
+    padding: 6px 14px; border-radius: 20px; font-size: 0.78rem; font-weight: 500;
+    border: 1px solid var(--border); background: var(--card); color: var(--muted);
+    cursor: pointer; white-space: nowrap; transition: all 0.15s;
+  }
+  .filter-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  .deal-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.15s;
+  }
+  .deal-card:active { border-color: var(--accent); }
+  .deal-icon { font-size: 1.3rem; min-width: 28px; text-align: center; }
+  .deal-info { flex: 1; min-width: 0; }
+  .deal-desc { font-size: 0.85rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .deal-date { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+  .deal-nums { text-align: right; }
+  .deal-profit { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; }
+  .deal-profit.pos { color: var(--green); }
+  .deal-profit.neg { color: var(--red); }
+  .deal-pct { font-size: 0.72rem; color: var(--muted); }
+  .deal-pending { font-size: 0.7rem; color: var(--accent2); font-weight: 600; }
+
+  .deal-actions { display: flex; gap: 6px; margin-top: 6px; }
+  .deal-btn {
+    font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--card2); color: var(--muted); cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s;
+  }
+  .deal-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .deal-btn.del:hover { border-color: var(--red); color: var(--red); }
+
+  /* MODAL */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    z-index: 200; display: flex; align-items: flex-end; justify-content: center;
+  }
+  .modal {
+    background: var(--card); border-radius: 20px 20px 0 0;
+    padding: 20px 20px 36px; width: 100%; max-width: 480px;
+    border-top: 2px solid var(--accent);
+  }
+  .modal h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: var(--accent); }
+  .modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .btn-cancel { background: var(--card2); color: var(--muted); }
+  .btn-del { background: var(--red); color: #fff; }
+
+  /* ADD FORM */
+  .form-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .form-card h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 14px; color: var(--accent); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .form-row.single { grid-template-columns: 1fr; }
+  label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 4px; }
+  input, select {
+    width: 100%; padding: 10px 12px; background: var(--card2);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+    outline: none; transition: border-color 0.15s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  .btn {
+    width: 100%; padding: 13px; border-radius: 10px;
+    background: var(--accent); color: #000; font-weight: 700;
+    font-size: 0.95rem; border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: opacity 0.15s;
+  }
+  .btn:active { opacity: 0.8; }
+
+  .hidden { display: none !important; }
+
+  /* TOP deals */
+  .top-deal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .top-deal .rank { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; color: var(--border); min-width: 28px; }
+  .top-deal .rank.gold { color: #f5c400; }
+  .top-deal .rank.silver { color: #aaa; }
+  .top-deal .rank.bronze { color: #cd7f32; }
+  .top-deal-info { flex: 1; padding: 0 10px; }
+  .top-deal-info .desc { font-size: 0.85rem; font-weight: 500; }
+  .top-deal-info .date { font-size: 0.72rem; color: var(--muted); }
+  .top-deal-val { text-align: right; }
+  .top-deal-val .profit { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; color: var(--green); }
+  .top-deal-val .mult { font-size: 0.72rem; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧱 LEGO FLIP</h1>
+  <span id="lastUpdate">Tracker</span>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('stats')">📊 Stats</div>
+  <div class="tab" onclick="showTab('liste')">📋 Liste</div>
+  <div class="tab" onclick="showTab('top')">🏆 Top</div>
+  <div class="tab" onclick="showTab('tilfoej')">➕ Tilføj</div>
+</div>
+
+<div id="tab-stats" class="section">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="label">Total investeret</div>
+      <div class="value" id="s-inv">—</div>
+      <div class="sub">afsluttede handler</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total solgt for</div>
+      <div class="value green" id="s-sold">—</div>
+      <div class="sub">afsluttede handler</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Samlet fortjeneste</div>
+      <div class="value green" id="s-profit">—</div>
+      <div class="sub" id="s-roi">ROI</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Antal handler</div>
+      <div class="value" id="s-count">—</div>
+      <div class="sub" id="s-pending-count">afventer</div>
+    </div>
+    <div class="stat-card full">
+      <div class="label">Afventer salg (estimeret)</div>
+      <div class="value" style="color:var(--accent2)" id="s-pending">—</div>
+      <div class="sub" id="s-pending-inv">investeret i disse</div>
+    </div>
+  </div>
+  <div class="chart-wrap">
+    <div class="chart-title">Fortjeneste pr. handel (kr.)</div>
+    <canvas id="profitChart" height="180"></canvas>
+  </div>
+  <div class="chart-wrap">
+    <div class="chart-title">Køb vs. Salg pr. handel</div>
+    <canvas id="buyChart" height="180"></canvas>
+  </div>
+</div>
+
+<div id="tab-liste" class="section hidden">
+  <div class="filter-row">
+    <div class="filter-btn active" onclick="setFilter('alle', this)">Alle</div>
+    <div class="filter-btn" onclick="setFilter('solgt', this)">✅ Solgt</div>
+    <div class="filter-btn" onclick="setFilter('pending', this)">⏳ Afventer</div>
+    <div class="filter-btn" onclick="setFilter('pos', this)">📈 Gevinst</div>
+    <div class="filter-btn" onclick="setFilter('neg', this)">📉 Tab</div>
+  </div>
+  <div id="deal-list"></div>
+</div>
+
+<div id="tab-top" class="section hidden">
+  <div class="chart-wrap" style="margin-bottom:16px">
+    <div class="chart-title">Top 5 – Bedste fortjeneste (kr.)</div>
+    <div id="top-list"></div>
+  </div>
+  <div class="chart-wrap">
+    <div class="chart-title">Top 5 – Bedste multiplikator (x gange)</div>
+    <div id="mult-list"></div>
+  </div>
+</div>
+
+<div id="tab-tilfoej" class="section hidden">
+  <div class="form-card">
+    <h3>➕ Ny handel</h3>
+    <div class="form-row single">
+      <div><label>Beskrivelse</label><input id="f-desc" type="text" placeholder="F.eks. Ridderkasse fra loppemarked"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Dato</label><input id="f-date" type="date"></div>
+      <div><label>Status</label>
+        <select id="f-status">
+          <option value="solgt">✅ Solgt</option>
+          <option value="pending">⏳ Afventer</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div><label>Købt for (kr.)</label><input id="f-buy" type="number" placeholder="0"></div>
+      <div><label>Solgt for (kr.)</label><input id="f-sell" type="number" placeholder="0"></div>
+    </div>
+    <button class="btn" onclick="addDeal()">Tilføj handel</button>
+  </div>
+  <div id="added-msg" class="hidden" style="text-align:center;color:var(--green);padding:10px;font-weight:600">✅ Handel tilføjet!</div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="modal" class="modal-bg hidden">
+  <div class="modal">
+    <h3 id="modal-title">✏️ Rediger handel</h3>
+    <div class="form-row single"><div><label>Beskrivelse</label><input id="m-desc" type="text"></div></div>
+    <div class="form-row">
+      <div><label>Dato</label><input id="m-date" type="date"></div>
+      <div><label>Status</label>
+        <select id="m-status">
+          <option value="solgt">✅ Solgt</option>
+          <option value="pending">⏳ Afventer</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div><label>Købt for (kr.)</label><input id="m-buy" type="number"></div>
+      <div><label>Solgt for (kr.)</label><input id="m-sell" type="number"></div>
+    </div>
+    <div id="partial-section" class="hidden">
+      <hr style="border-color:var(--border);margin:12px 0">
+      <div style="font-size:0.75rem;color:var(--accent2);margin-bottom:8px;font-weight:600">📦 REGISTRER DELSALG</div>
+      <div class="form-row">
+        <div><label>Solgt beløb nu (kr.)</label><input id="m-partial" type="number" placeholder="0"></div>
+        <div style="display:flex;align-items:flex-end"><button class="btn" style="font-size:0.8rem;padding:10px" onclick="applyPartial()">Tilføj delsalg</button></div>
+      </div>
+      <div id="partial-log" style="font-size:0.75rem;color:var(--muted);margin-top:4px"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal()">Annuller</button>
+      <button class="btn btn-del" id="modal-del-btn" onclick="deleteDeal()">🗑️ Slet</button>
+    </div>
+    <button class="btn" style="margin-top:10px" onclick="saveDeal()">💾 Gem ændringer</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const DEFAULT_DEALS = [
+  // 2024
+  {date:'2024-08-01',desc:'Rørvig',buy:700,sell:970,status:'solgt'},
+  {date:'2024-08-01',desc:'Ved arbejde',buy:200,sell:780,status:'solgt'},
+  {date:'2024-08-01',desc:'Nykøbing',buy:200,sell:835,status:'solgt'},
+  {date:'2024-08-01',desc:'Loppemarked',buy:100,sell:155,status:'solgt'},
+  {date:'2024-08-01',desc:'Stenstrup',buy:30,sell:258,status:'solgt'},
+  {date:'2024-08-02',desc:'Nykøbing super miners',buy:400,sell:450,status:'solgt'},
+  {date:'2024-08-02',desc:'Mærsk',buy:200,sell:240,status:'solgt'},
+  {date:'2024-08-02',desc:'Gul kasse',buy:100,sell:120,status:'solgt'},
+  {date:'2024-08-05',desc:'Mange mænd i Røvig',buy:175,sell:1790,status:'solgt'},
+  {date:'2024-08-13',desc:'Hestevogn',buy:150,sell:600,status:'solgt'},
+  {date:'2024-09-26',desc:'Skib',buy:100,sell:400,status:'solgt'},
+  {date:'2024-10-03',desc:'Fra Tagensvej',buy:250,sell:520,status:'solgt'},
+  {date:'2024-10-03',desc:'MD lastbil',buy:400,sell:300,status:'solgt'},
+  {date:'2024-10-09',desc:'Islands brygge',buy:350,sell:510,status:'solgt'},
+  {date:'2024-11-26',desc:'Sommerhus tæt på Rørvig',buy:200,sell:225,status:'solgt'},
+  {date:'2024-11-26',desc:'Tårnbypark alle',buy:400,sell:1406,status:'solgt'},
+  {date:'2024-11-29',desc:'Bag ikea',buy:175,sell:169,status:'solgt'},
+  {date:'2024-12-06',desc:'Exo Force, 2 pakker',buy:170,sell:200,status:'solgt'},
+  {date:'2024-12-22',desc:'Mange riddere, købt i Sverige',buy:400,sell:179,status:'solgt'},
+  {date:'2024-12-22',desc:'Ridderkasse',buy:125,sell:267,status:'solgt'},
+  {date:'2024-12-26',desc:'Android base og elefant',buy:70,sell:330,status:'solgt'},
+  // 2025
+  {date:'2025-01-19',desc:'Charlottenlund',buy:250,sell:1085,status:'solgt'},
+  {date:'2025-01-19',desc:'Trold, ved Romo',buy:440,sell:1095,status:'solgt'},
+  {date:'2025-01-19',desc:'Mindstorms',buy:250,sell:540,status:'solgt'},
+  {date:'2025-01-20',desc:'Grenåsvej og sidste dag på året',buy:200,sell:775,status:'solgt'},
+  {date:'2025-01-28',desc:'Den flotte plade',buy:500,sell:1450,status:'solgt'},
+  {date:'2025-01-30',desc:'Oplysninger får du her',buy:150,sell:170,status:'solgt'},
+  {date:'2025-02-01',desc:'Islands brygge',buy:75,sell:144,status:'solgt'},
+  {date:'2025-02-17',desc:'Spilprisen dag - Sverige',buy:200,sell:385,status:'solgt'},
+  {date:'2025-03-31',desc:'Sydhavn station i lille ikeapose',buy:350,sell:410,status:'solgt'},
+  {date:'2025-04-16',desc:'Skorpionborg',buy:300,sell:282,status:'solgt'},
+  {date:'2025-05-30',desc:'Taastrup Drageborg',buy:200,sell:250,status:'solgt'},
+  {date:'2025-06-01',desc:'Lopper uden børn',buy:240,sell:600,status:'solgt'},
+  {date:'2025-06-09',desc:'Loppe med spil og Harry Potter',buy:200,sell:300,status:'solgt'},
+  {date:'2025-08-03',desc:'Over Føtex',buy:350,sell:500,status:'solgt'},
+  {date:'2025-08-06',desc:'Strygejern',buy:200,sell:400,status:'solgt'},
+  {date:'2025-08-21',desc:'17 poser og 7 kilo',buy:1250,sell:2235,status:'solgt'},
+  {date:'2025-08-21',desc:'Nørre Søgade',buy:750,sell:2277,status:'solgt'},
+  {date:'2025-08-27',desc:'Loppemarked med dyr Starwars',buy:30,sell:402,status:'solgt'},
+  {date:'2025-09-06',desc:'Hellerup - polka',buy:300,sell:3922,status:'solgt'},
+  {date:'2025-09-21',desc:'Loppemarked, blandet pose',buy:50,sell:80,status:'solgt'},
+  {date:'2025-09-30',desc:'Lotr og Starwars',buy:1200,sell:2570,status:'solgt'},
+  {date:'2025-10-22',desc:'Charlottenlund, ukendt',buy:500,sell:1000,status:'solgt'},
+  {date:'2025-10-22',desc:'Fabuland',buy:140,sell:355,status:'solgt'},
+  {date:'2025-12-02',desc:'Abe på snor',buy:50,sell:100,status:'solgt'},
+  {date:'2025-12-22',desc:'Weny',buy:250,sell:197,status:'solgt'},
+  {date:'2025-12-22',desc:'Nissegave hos fupper',buy:350,sell:795,status:'solgt'},
+  {date:'2025-12-22',desc:'Space',buy:875,sell:1723,status:'solgt'},
+  {date:'2025-12-22',desc:'Virum, ds og gamle æsker',buy:500,sell:2055,status:'pending'},
+  {date:'2025-12-22',desc:'Loppe borge i hvid pose',buy:300,sell:1125,status:'solgt'},
+  {date:'2025-12-22',desc:'Karlslunde skib med røde sejl',buy:1000,sell:1924,status:'solgt'},
+  {date:'2025-12-22',desc:'28kg',buy:1500,sell:1805,status:'solgt'},
+  {date:'2025-12-22',desc:'Togskinner',buy:70,sell:230,status:'solgt'},
+  {date:'2025-12-22',desc:'2 rumskibe med æsker',buy:50,sell:50,status:'solgt'},
+  {date:'2025-12-22',desc:'6082 - Nicholas',buy:1000,sell:2945,status:'solgt'},
+  {date:'2025-12-22',desc:'Batman - 120kr',buy:2000,sell:3965,status:'solgt'},
+  {date:'2025-12-28',desc:'91 minifigs fra Jylland',buy:540,sell:1617,status:'solgt'},
+  // 2026
+  {date:'2026-01-19',desc:'Udsigten 19',buy:1000,sell:1650,status:'solgt'},
+  {date:'2026-01-19',desc:'Nytårsdag',buy:500,sell:3681,status:'solgt'},
+  {date:'2026-02-11',desc:'121 og 118',buy:121,sell:118,status:'solgt'},
+  {date:'2026-02-27',desc:'Ødelagt kasse fra genbrugsbutik',buy:250,sell:587,status:'solgt'},
+  {date:'2026-03-04',desc:'B rumskib',buy:250,sell:1585,status:'solgt'},
+  {date:'2026-03-10',desc:'Lego tog',buy:55,sell:9080,status:'solgt'},
+  {date:'2026-04-26',desc:'Gentofte 3kg',buy:533,sell:365,status:'solgt'},
+  {date:'2026-05-10',desc:'Bagsværd',buy:1800,sell:4000,status:'pending'},
+  {date:'2026-05-10',desc:'Ringenes herre og meget Star Wars',buy:1200,sell:1741,status:'pending'},
+];
+
+// Load from localStorage or use defaults
+function loadDeals() {
+  try {
+    const saved = localStorage.getItem('legoflip_deals');
+    return saved ? JSON.parse(saved) : DEFAULT_DEALS;
+  } catch(e) { return DEFAULT_DEALS; }
+}
+function saveDeals() {
+  try { localStorage.setItem('legoflip_deals', JSON.stringify(deals)); } catch(e) {}
+}
+
+let deals = loadDeals();
+
+let currentFilter = 'alle';
+
+function fmt(n) { return n.toLocaleString('da-DK') + ' kr.'; }
+function pct(buy,sell) { return ((sell-buy)/buy*100).toFixed(0)+'%'; }
+
+function getSold() { return deals.filter(d=>d.status==='solgt'); }
+function getPending() { return deals.filter(d=>d.status==='pending'); }
+
+function renderStats() {
+  const sold = getSold();
+  const pending = getPending();
+  const inv = sold.reduce((a,d)=>a+d.buy,0);
+  const revenue = sold.reduce((a,d)=>a+d.sell,0);
+  const profit = revenue - inv;
+  const roi = inv > 0 ? (profit/inv*100).toFixed(1) : 0;
+  const pInv = pending.reduce((a,d)=>a+d.buy,0);
+  const pSell = pending.reduce((a,d)=>a+d.sell,0);
+
+  document.getElementById('s-inv').textContent = fmt(inv);
+  document.getElementById('s-sold').textContent = fmt(revenue);
+  document.getElementById('s-profit').textContent = fmt(profit);
+  document.getElementById('s-roi').textContent = `ROI: ${roi}%`;
+  document.getElementById('s-count').textContent = sold.length;
+  document.getElementById('s-pending-count').textContent = `${pending.length} handler afventer`;
+  document.getElementById('s-pending').textContent = fmt(pSell);
+  document.getElementById('s-pending-inv').textContent = `investeret: ${fmt(pInv)}`;
+}
+
+function renderCharts() {
+  const sold = getSold().slice(-30);
+  const labels = sold.map(d => d.desc.substring(0,12));
+  const profits = sold.map(d => d.sell - d.buy);
+  const colors = profits.map(p => p >= 0 ? '#4caf7d' : '#e05555');
+
+  const cfg = { responsive: true, plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color:'#666', font:{size:9} }, grid:{color:'#1e1e1e'} },
+      y: { ticks: { color:'#666', font:{size:9} }, grid:{color:'#222'} }
+    }
+  };
+
+  new Chart(document.getElementById('profitChart'), {
+    type:'bar',
+    data:{ labels, datasets:[{ data:profits, backgroundColor:colors, borderRadius:3 }] },
+    options: {...cfg, plugins:{...cfg.plugins}}
+  });
+
+  new Chart(document.getElementById('buyChart'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Købt', data:sold.map(d=>d.buy), backgroundColor:'#333', borderRadius:3},
+        {label:'Solgt', data:sold.map(d=>d.sell), backgroundColor:'#f5c400aa', borderRadius:3}
+      ]
+    },
+    options:{...cfg, plugins:{legend:{display:true, labels:{color:'#888',font:{size:10}}}}}
+  });
+}
+
+function renderList() {
+  const list = document.getElementById('deal-list');
+  let data = [...deals].reverse();
+  if (currentFilter === 'solgt') data = data.filter(d=>d.status==='solgt');
+  else if (currentFilter === 'pending') data = data.filter(d=>d.status==='pending');
+  else if (currentFilter === 'pos') data = data.filter(d=>d.sell>d.buy);
+  else if (currentFilter === 'neg') data = data.filter(d=>d.sell<=d.buy);
+
+  list.innerHTML = data.map((d,_i) => {
+    const idx = deals.indexOf(d);
+    const profit = d.sell - d.buy;
+    const posNeg = profit >= 0 ? 'pos' : 'neg';
+    const icon = d.status==='pending' ? '⏳' : profit>=0 ? '✅' : '❌';
+    const partialInfo = d.partialSales ? `<span style="color:var(--accent2)">Delsalg: ${d.partialSales.map(p=>fmt(p)).join(', ')}</span>` : '';
+    return `<div class="deal-card">
+      <div class="deal-icon">${icon}</div>
+      <div class="deal-info">
+        <div class="deal-desc">${d.desc}</div>
+        <div class="deal-date">${d.date} · købt ${fmt(d.buy)}</div>
+        ${d.status==='pending'?'<div class="deal-pending">AFVENTER SALG</div>':''}
+        ${partialInfo}
+        <div class="deal-actions">
+          <button class="deal-btn" onclick="openEdit(${idx})">✏️ Rediger</button>
+          <button class="deal-btn del" onclick="confirmDelete(${idx})">🗑️ Slet</button>
+          ${d.status==='pending'?`<button class="deal-btn" onclick="openPartial(${idx})">📦 Delsalg</button>`:''}
+        </div>
+      </div>
+      <div class="deal-nums">
+        <div class="deal-profit ${posNeg}">${profit>=0?'+':''}${fmt(profit)}</div>
+        <div class="deal-pct">${d.buy>0?pct(d.buy,d.sell):''} · ${fmt(d.sell)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderTop() {
+  const sold = getSold();
+  const byProfit = [...sold].sort((a,b)=>(b.sell-b.buy)-(a.sell-a.buy)).slice(0,5);
+  const byMult = [...sold].filter(d=>d.buy>0).sort((a,b)=>(b.sell/b.buy)-(a.sell/a.buy)).slice(0,5);
+  const ranks = ['gold','silver','bronze','',''];
+  const rankSymbols = ['🥇','🥈','🥉','4','5'];
+
+  document.getElementById('top-list').innerHTML = byProfit.map((d,i)=>`
+    <div class="top-deal">
+      <div class="rank ${ranks[i]}">${rankSymbols[i]}</div>
+      <div class="top-deal-info"><div class="desc">${d.desc}</div><div class="date">${d.date}</div></div>
+      <div class="top-deal-val">
+        <div class="profit">+${fmt(d.sell-d.buy)}</div>
+        <div class="mult">${fmt(d.buy)} → ${fmt(d.sell)}</div>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('mult-list').innerHTML = byMult.map((d,i)=>`
+    <div class="top-deal">
+      <div class="rank ${ranks[i]}">${rankSymbols[i]}</div>
+      <div class="top-deal-info"><div class="desc">${d.desc}</div><div class="date">${d.date}</div></div>
+      <div class="top-deal-val">
+        <div class="profit" style="color:var(--accent)">${(d.sell/d.buy).toFixed(1)}x</div>
+        <div class="mult">${fmt(d.buy)} → ${fmt(d.sell)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderList();
+}
+
+function showTab(name) {
+  ['stats','liste','top','tilfoej'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('hidden', t!==name);
+  });
+  document.querySelectorAll('.tab').forEach((t,i)=>{
+    t.classList.toggle('active', ['stats','liste','top','tilfoej'][i]===name);
+  });
+}
+
+function addDeal() {
+  const desc = document.getElementById('f-desc').value.trim();
+  const date = document.getElementById('f-date').value;
+  const buy = parseFloat(document.getElementById('f-buy').value)||0;
+  const sell = parseFloat(document.getElementById('f-sell').value)||0;
+  const status = document.getElementById('f-status').value;
+  if (!desc || !date) { alert('Udfyld beskrivelse og dato'); return; }
+  deals.push({date,desc,buy,sell,status});
+  deals.sort((a,b)=>a.date.localeCompare(b.date));
+  saveDeals();
+  document.getElementById('f-desc').value='';
+  document.getElementById('f-buy').value='';
+  document.getElementById('f-sell').value='';
+  document.getElementById('added-msg').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('added-msg').classList.add('hidden'),2000);
+  renderStats(); renderList(); renderTop();
+}
+
+let editIdx = -1;
+
+function openEdit(idx) {
+  editIdx = idx;
+  const d = deals[idx];
+  document.getElementById('modal-title').textContent = '✏️ Rediger handel';
+  document.getElementById('m-desc').value = d.desc;
+  document.getElementById('m-date').value = d.date;
+  document.getElementById('m-buy').value = d.buy;
+  document.getElementById('m-sell').value = d.sell;
+  document.getElementById('m-status').value = d.status;
+  document.getElementById('partial-section').classList.add('hidden');
+  document.getElementById('modal-del-btn').classList.remove('hidden');
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function openPartial(idx) {
+  editIdx = idx;
+  const d = deals[idx];
+  document.getElementById('modal-title').textContent = '📦 Delsalg – ' + d.desc;
+  document.getElementById('m-desc').value = d.desc;
+  document.getElementById('m-date').value = d.date;
+  document.getElementById('m-buy').value = d.buy;
+  document.getElementById('m-sell').value = d.sell;
+  document.getElementById('m-status').value = d.status;
+  document.getElementById('partial-section').classList.remove('hidden');
+  document.getElementById('m-partial').value = '';
+  const log = d.partialSales ? 'Tidligere delsalg: ' + d.partialSales.map(p=>fmt(p)).join(', ') : 'Ingen delsalg endnu';
+  document.getElementById('partial-log').textContent = log;
+  document.getElementById('modal-del-btn').classList.remove('hidden');
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+function applyPartial() {
+  const amount = parseFloat(document.getElementById('m-partial').value)||0;
+  if (!amount) return;
+  const d = deals[editIdx];
+  if (!d.partialSales) d.partialSales = [];
+  d.partialSales.push(amount);
+  const totalSold = d.partialSales.reduce((a,v)=>a+v,0);
+  document.getElementById('m-sell').value = totalSold;
+  document.getElementById('m-partial').value = '';
+  document.getElementById('partial-log').textContent = 'Delsalg: ' + d.partialSales.map(p=>fmt(p)).join(', ') + ' = ' + fmt(totalSold);
+}
+
+function saveDeal() {
+  const d = deals[editIdx];
+  d.desc = document.getElementById('m-desc').value.trim() || d.desc;
+  d.date = document.getElementById('m-date').value;
+  d.buy = parseFloat(document.getElementById('m-buy').value)||0;
+  d.sell = parseFloat(document.getElementById('m-sell').value)||0;
+  d.status = document.getElementById('m-status').value;
+  deals.sort((a,b)=>a.date.localeCompare(b.date));
+  saveDeals();
+  closeModal();
+  renderStats(); renderList(); renderTop();
+}
+
+function confirmDelete(idx) {
+  editIdx = idx;
+  // Show delete confirmation inside modal instead of confirm()
+  document.getElementById('modal-title').textContent = '🗑️ Slet handel?';
+  document.getElementById('m-desc').value = deals[idx].desc;
+  document.getElementById('m-date').value = deals[idx].date;
+  document.getElementById('m-buy').value = deals[idx].buy;
+  document.getElementById('m-sell').value = deals[idx].sell;
+  document.getElementById('m-status').value = deals[idx].status;
+  document.getElementById('partial-section').classList.add('hidden');
+  document.getElementById('modal').classList.remove('hidden');
+  // Swap save btn to confirm delete
+  document.querySelector('#modal .btn:last-child').textContent = '🗑️ Ja, slet denne handel';
+  document.querySelector('#modal .btn:last-child').onclick = deleteDeal;
+  document.querySelector('#modal .btn:last-child').style.background = 'var(--red)';
+}
+
+function deleteDeal() {
+  if (editIdx < 0) return;
+  deals.splice(editIdx, 1);
+  saveDeals();
+  closeModal();
+  // Reset save button
+  document.querySelector('#modal .btn:last-child').textContent = '💾 Gem ændringer';
+  document.querySelector('#modal .btn:last-child').onclick = saveDeal;
+  document.querySelector('#modal .btn:last-child').style.background = 'var(--accent)';
+  renderStats(); renderList(); renderTop();
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.add('hidden');
+  editIdx = -1;
+  // Always reset save button
+  const saveBtn = document.querySelector('#modal .btn:last-child');
+  saveBtn.textContent = '💾 Gem ændringer';
+  saveBtn.onclick = saveDeal;
+  saveBtn.style.background = 'var(--accent)';
+}
+
+// Close modal on background click
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+
+document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+renderStats();
+renderCharts();
+renderList();
+renderTop();
+</script>
+</body>
+</html>
